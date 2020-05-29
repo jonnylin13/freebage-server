@@ -59,7 +59,7 @@ class GameServer {
       let lobby = this.lobbies[lobbyId]
       this.logger.info('Player deleted with id: ' + playerId);
       let result = lobby.removePlayer(playerId);
-      if (Object.keys(lobby.players).length == 0)
+      if (lobby.getPlayerCount() == 0)
         this.deleteLobby(lobby.id);
       return result;
     } else return false;

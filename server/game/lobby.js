@@ -1,31 +1,24 @@
 'use strict'
 
-const MAX_PLAYERS = 8;
-const POINT_VALUES = [
-  {
-    lie: 500,
-    truth: 1000,
-    funny: 1125
-  },
-  {
-    lie: 1000,
-    truth: 1250,
-    funny: 1750
-  },
-  {
-    lie: 1500,
-    truth: 1750,
-    funny: 2500
-  }
-];
+const rules = require('../../rules.json');
 
 class Lobby {
   constructor(id, logger) {
+
     this.id = id;
     this.logger = logger;
     this.gameStarted = false;
     this.players = {};
     this.currentRound = 1;
+    
+  }
+
+  /**
+   * Returns the Player count of the lobby
+   * @return {Number} Player count
+   */
+  getPlayerCount() {
+    return Object.keys(this.player).length;
   }
 
   /**
@@ -34,16 +27,19 @@ class Lobby {
    * @return {Boolean} True if successful
    */
   addPlayer(player) {
-    if (Object.keys(this.players).length == MAX_PLAYERS) {
-      // Force start the game?
+
+    if (this.getPlayerCount() == rules.max_players) 
       return false;
-    }
+    
     if (!(player.id in this.players) && !('lobbyId' in player)) {
+
       this.players[player.id] = player;
       player.lobbyId = this.id;
       this.logger.info('Player ' + player.name + ' added to lobby ' + this.id);
       return true;
+
     } else return false;
+
   }
 
   /**
@@ -52,17 +48,24 @@ class Lobby {
    * @return {Boolean} True if successful
    */
   removePlayer(playerId) {
+
     if (playerId in this.players) {
+
       let player = this.players[playerId];
       delete player['lobbyId'];
       delete this.players[playerId]
       this.logger.info('Player ' + player.name + ' removed from lobby ' + this.id);
       return true;
+
     } else return false;
+
   }
 
   start() {
 
+    if (this.getPlayerCount() < rules.min_players) 
+      return false;
+    
   }
 
   stop() {
