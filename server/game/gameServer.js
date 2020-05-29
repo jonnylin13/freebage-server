@@ -18,7 +18,7 @@ class GameServer {
    * @return {String} Lobby HRI ID
    */
   createLobby() {
-    let lobby = new Lobby(HRI.random(), new Logger('Lobby', this.logger.priority));
+    let lobby = new Lobby(HRI.random(), new Logger('Lobby', this.logger.priority, ' ---- '));
     this.lobbies[lobby.id] = lobby;
     this.logger.info('Lobby created with id: ' + lobby.id);
     return lobby.id;
@@ -58,8 +58,23 @@ class GameServer {
     if (lobbyId in this.lobbies) {
       let lobby = this.lobbies[lobbyId]
       this.logger.info('Player deleted with id: ' + playerId);
-      return lobby.removePlayer(playerId);
+      let result = lobby.removePlayer(playerId);
+      if (Object.keys(lobby.players).length == 0)
+        this.deleteLobby(lobby.id);
+      return result;
     } else return false;
+  }
+
+  startLobby(lobbyId) {
+    // TODO
+  }
+
+  stopLobby(lobbyId) {
+    // TODO
+  }
+
+  pauseLobby(lobbyId) {
+    // TODO
   }
 
 }

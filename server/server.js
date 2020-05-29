@@ -3,6 +3,7 @@
 const WebSocket = require('ws');
 const { GameServer } = require('./game/gameServer');
 const { Logger } = require('./logger');
+const _ = require('underscore');
 // const http = require('http');
 
 class Server {
@@ -11,7 +12,8 @@ class Server {
     this.wss = null;
     // this.server = http.createServer();
     this.clients = {};
-    this.gameServer = new GameServer(new Logger('GameServer', 2));
+    this.gameServer = new GameServer(new Logger('GameServer', 2, ' -- '));
+    this.heartbeats = 0;
   }
 
   /**
@@ -19,7 +21,7 @@ class Server {
    */
   start() {
     this.logger = new Logger('Server', 2);
-    this.wss = new WebSocket.Server({port: 3000, host: 'localhost'});
+    this.wss = new WebSocket.Server({port: 3000, host: '10.0.0.63'});
     this.logger.info('Instantiated websocket server');
     
     this.wss.on('connection', client => this.open(client));
@@ -36,14 +38,16 @@ class Server {
       this.wss.clients.forEach((client) => {
         if (!client.isAlive) {
           // Add extra logic here to clean the player up
+          this.deleteClient(client);
           return client.terminate();
         }
         client.isAlive = false;
         client.ping();
       });
-      this.logger.debug('Sent heartbeat');
+      let expected = _.pluck(Object.values(this.clients), { isAlive: true }).length;
+      this.logger.debug('Received ' + this.heartbeats + ' heartbeats out of ' + expected + ' expected');
+      this.heartbeats = 0;
     }, 30 * 1000);
-
     this.logger.debug('Started heartbeat');
   }
 
@@ -56,7 +60,8 @@ class Server {
     client.isAlive = true;
     client.on('pong', (msg) => { this.heartbeat(client, msg) });
     client.on('message', (msg) => { this.message(client, msg) });
-    client.on('close', (code, reason) => { this.clientDisconnect(client, code, reason) });
+    client.on('close', (code, reason) => { this.deleteClient(client) });
+    client.on('error', (err) => { this.deleteClient(client) });
   }
 
   /**
@@ -84,20 +89,32 @@ class Server {
       case 'leave':
         this.leaveAck(client, data);
         break;
+      case 'pause':
+        break;
     }
 
   }
 
-  clientDisconnect(client, code, reason) {
-    // TODO
+  /**
+   * Removes the client from the GameServer and the local reference of clients
+   * @param {WebSocket} client 
+   */
+  deleteClient(client) {
+    if ('playerId' in client) {
+      delete this.clients[client.playerId];
+      if ('lobbyId' in client)
+        this.gameServer.deletePlayer(client.lobbyId, client.playerId);
+    }
   }
 
   /**
    * Called when a pong request is received from the client
+   * @param {WebSocket} client - The websocket client
+   * @param {string} msg - The string message
    */
   heartbeat(client, msg) {
     client.isAlive = true;
-    this.logger.debug('Received heartbeat');
+    this.heartbeats++;
   }
 
   /**
@@ -105,6 +122,8 @@ class Server {
    */
   close() {
     clearInterval(this.heartbeatTask);
+    for (let client of Object.values(this.clients))
+      this.deleteClient(client);
     this.logger.info('Server terminated');
   }
 
@@ -138,42 +157,63 @@ class Server {
     let lobbyId = data.lobbyId;
 
     if (!('lobbyId' in data)) {
-      this.logger.info('Attempting to create a lobby');
       // Create the lobby
       lobbyId = this.gameServer.createLobby();
       if (lobbyId in this.gameServer.lobbies) {
         let lobby = this.gameServer.lobbies[lobbyId];
         let player = this.gameServer.createPlayer(playerName);
+        client.playerId = player.id;
+        client.lobbyId = lobby.id;
         lobby.addPlayer(player);
         this.clients[player.id] = client;  
         response.code = 1;
         response.lobbyId = lobbyId;
         response.playerId = player.id;
+        response.name = playerName;
       } else {
         // Lobby could not be added to this.gameServer.lobbies..
-        this.logger.error('Weird error where Lobby instance could not be created');
+        this.logger.error('Lobby instance could not be created');
         response.code = -1;
       }
       
     } else if (lobbyId in this.gameServer.lobbies) {
 
       // Join the lobby
-      let player = this.gameServer.createPlayer(playerName);
+      let newPlayer = this.gameServer.createPlayer(playerName);
       let lobby = this.gameServer.lobbies[lobbyId];
-      lobby.addPlayer(player);
-      this.clients[player.id] = client;
+      if (!lobby.addPlayer(newPlayer)) {
+        response.code = -3;
+        this.send(client, response);
+        return;
+      }
+      client.playerId = newPlayer.id;
+      client.lobbyId = lobby.id;
+      this.clients[newPlayer.id] = client;
       response.code = 2;
       response.lobbyId = lobbyId;
-      response.playerId = player.id;
+      response.playerId = newPlayer.id;
+      let ps = _.map(Object.values(lobby.players), p => { return { name: p.name, id: p.id } });
+      for (let pid of Object.keys(lobby.players)) {
+        let c = this.clients[pid];
+        this.send(c, {
+          type: 'update_lobby',
+          players: ps
+        });
+      }
 
     } else {
       // No lobby found
-      this.logger.error('Could not find lobby to join: ' + lobbyId);
+      this.logger.error('Could not find lobby id ' + lobbyId + ' for join request');
       response.code = -2;
     }
     this.send(client, response);
   }
 
+  /**
+   * Handles start requests from the client
+   * @param {WebSocket} client 
+   * @param {Object} data 
+   */
   startAck(client, data) {
     let response = {
       type: 'start_ack'
@@ -191,6 +231,11 @@ class Server {
     this.send(client, response);
   }
 
+  /**
+   * Handles leave requests from the client
+   * @param {WebSocket} client 
+   * @param {Object} data 
+   */
   leaveAck(client, data) {
     let response = {
       type: 'leave_ack'
@@ -210,13 +255,22 @@ class Server {
       let lobby = this.gameServer.lobbies[lobbyId];
       if (playerId in lobby.players) {
         this.gameServer.deletePlayer(lobbyId, playerId);
+        this.deleteClient(client);
         response.code = 1;
+        let ps = _.map(Object.values(lobby.players), p => { return { name: p.name, id: p.id } });
+        for (let pid of Object.keys(lobby.players)) {
+          let c = this.clients[pid];
+          this.send(c, {
+            type: 'update_lobby',
+            players: ps
+          });
+        }
       } else {
-        // TODO
+        this.logger.error('Could not find player id ' + playerId + ' in lobby id ' + lobbyId + ' for leave request');
         response.code = -1;
       }
     } else {
-      // TODO
+      this.logger.error('Could not find lobby id ' + lobbyId + ' for leave request');
       response.code = -2;
     }
 
