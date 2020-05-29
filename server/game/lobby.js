@@ -7,10 +7,10 @@ class Lobby {
 
     this.id = id;
     this.logger = logger;
-    this.gameStarted = false;
     this.players = {};
     this.currentRound = 1;
-    
+    this.currentPhase = 1;
+
   }
 
   /**
@@ -18,7 +18,7 @@ class Lobby {
    * @return {Number} Player count
    */
   getPlayerCount() {
-    return Object.keys(this.player).length;
+    return Object.keys(this.players).length;
   }
 
   /**
@@ -65,15 +65,16 @@ class Lobby {
 
     if (this.getPlayerCount() < rules.min_players) 
       return false;
-    
+    // TODO
+
   }
 
   stop() {
-
+    // TODO
   }
 
   pause() {
-    
+    // TODO
   }
 
 }

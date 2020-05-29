@@ -1,6 +1,7 @@
 {
   "min_players": 2,
   "max_players": 8,
+  "num_rounds": 3,
   "points": [
     {
       "lie": 500,

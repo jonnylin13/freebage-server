@@ -1,0 +1,58 @@
+{
+  "in": {
+    "handshake": {
+      "type": "handshake"
+    },
+    "start": {
+      "type": "start"
+    },
+    "leave": {
+      "type": "leave"
+    },
+    "pause": {
+      "type": "pause"
+    },
+    "play": {
+      "type": "play"
+    }
+  },
+  "out": {
+    "handshake": {
+      "type": "handshake_ack"
+    },
+    "start": {
+      "type": "start_ack"
+    },
+    "leave": {
+      "type": "leave_ack"
+    },
+    "pause": {
+      "type": "pause_ack"
+    },
+    "play": {
+      "type": "play_ack"
+    },
+    "update_lobby": {
+      "type": "update_lobby"
+    }
+  },
+  "code": {
+    "generic": {
+      "validation_error": 0
+    },
+    "handshake": {
+      "create_lobby": 1,
+      "join_lobby": 2,
+      "lobby_creation_error": -1,
+      "lobby_missing_error": -2,
+      "add_player_error": -3
+    },
+    "start": {
+    },
+    "leave": {
+      "success": 1,
+      "player_missing_error": -1,
+      "lobby_missing_error": -2
+    }
+  }
+}

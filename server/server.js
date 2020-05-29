@@ -5,6 +5,7 @@ const { GameServer } = require('./game/gameServer');
 const { Logger } = require('./logger');
 const _ = require('underscore');
 const config = require('../config.json');
+const protocol = require('../protocol.json');
 // const http = require('http');
 
 
@@ -107,6 +108,7 @@ class Server {
         this.leaveAck(client, data);
         break;
       case 'pause':
+        this.pauseAck(client, data);
         break;
     }
 
@@ -118,6 +120,8 @@ class Server {
    */
   deleteClient(client) {
 
+    // Create a task that will delete the player after a certain amount of time
+    // So they can reconnect
     if ('playerId' in client) {
       delete this.clients[client.playerId];
       if ('lobbyId' in client)
@@ -158,19 +162,47 @@ class Server {
   }
 
   /**
+   * Validates the fields for an incoming request
+   * @param {Object} data 
+   * @param {Function} test
+   * @param {Boolean} override
+   * @return {Boolean} Whether the data was successfully validated
+   */
+  validateRequest(data, client, fields=[], override=false) {
+
+    let response = {
+      type: data.type + '_ack',
+      code: protocol.code.generic.validation_error
+    };
+
+    if (!override)
+      fields = fields.concat(['playerId', 'lobbyId']);
+
+    for (let field of fields) {
+      if (!(field in data)) {
+        this.send(client, response);
+        this.logger.error('Received ' + data.type + ' request with missing fields from: ' + client._socket.remoteAddress);
+        return false;
+      }
+    }
+    return true;
+
+  }
+
+  /**
    * Updates the lobby with player information
    * @param {Lobby} lobby 
    */
   updateLobby(lobby) {
 
     let ps = _.map(Object.values(lobby.players), p => { return { name: p.name, id: p.id, score: p.score } });
+    let req = protocol.out.update_lobby;
+    req.players = ps;
     
     for (let pid of Object.keys(lobby.players)) {
       let c = this.clients[pid];
-      this.send(c, {
-        type: 'update_lobby',
-        players: ps
-      });
+      req.players = ps;
+      this.send(c, req);
     }
 
   }
@@ -182,16 +214,9 @@ class Server {
    */
   handshakeAck(client, data) {
 
-    let response = {
-      type: 'handshake_ack'
-    };
+    let response = protocol.out.handshake;
 
-    if (!('name' in data)) {
-      response.code = 0;
-      this.send(client, response);
-      this.logger.error('Received handshake request with missing fields from: ' + client._socket.remoteAddress);
-      return;
-    }
+    if (!this.validateRequest(data, client, ['name'], true)) return;
 
     let playerName = data.name;
     let lobbyId = data.lobbyId;
@@ -211,7 +236,7 @@ class Server {
         lobby.addPlayer(player);
         this.clients[player.id] = client;  
 
-        response.code = 1;
+        response.code = protocol.code.handshake.create_lobby;
         response.lobbyId = lobbyId;
         response.playerId = player.id;
         response.name = playerName;
@@ -219,7 +244,7 @@ class Server {
       } else {
         // Lobby could not be added to this.gameServer.lobbies..
         this.logger.error('Lobby instance could not be created');
-        response.code = -1;
+        response.code = protocol.code.handshake.lobby_creation_error;
       }
       
     } else if (lobbyId in this.gameServer.lobbies) {
@@ -229,7 +254,7 @@ class Server {
       let lobby = this.gameServer.lobbies[lobbyId];
 
       if (!lobby.addPlayer(newPlayer)) {
-        response.code = -3;
+        response.code = protocol.code.handshake.lobby_creation_error;
         this.send(client, response);
         return;
       }
@@ -238,7 +263,7 @@ class Server {
       client.lobbyId = lobby.id;
       this.clients[newPlayer.id] = client;
 
-      response.code = 2;
+      response.code = protocol.code.handshake.join_lobby;
       response.lobbyId = lobbyId;
       response.playerId = newPlayer.id;
 
@@ -247,7 +272,7 @@ class Server {
     } else {
       // No lobby found
       this.logger.error('Could not find lobby id ' + lobbyId + ' for join request');
-      response.code = -2;
+      response.code = protocol.code.handshake.lobby_missing_error;
     }
 
     this.send(client, response);
@@ -260,16 +285,8 @@ class Server {
    */
   startAck(client, data) {
 
-    let response = {
-      type: 'start_ack'
-    };
-
-    if (!('playerId' in data) || !('lobbyId' in data)) {
-      response.code = 0;
-      this.send(client, response);
-      this.logger.error('Received start request with missing fields from: ' + client._socket.remoteAddress);
-      return;
-    }
+    let response = protocol.out.start;
+    if (!this.validateRequest(data, client)) return;
 
     // TODO - handle
 
@@ -283,17 +300,8 @@ class Server {
    */
   leaveAck(client, data) {
 
-    let response = {
-      type: 'leave_ack'
-    };
-
-    if (!('playerId' in data) || !('lobbyId' in data)) {
-      response.code = 0;
-      this.send(client, response);
-      this.logger.error('Received leave request with missing fields from: ' + client._socket.remoteAddress);
-      return;
-    }
-
+    let response = protocol.out.leave;
+    if (!this.validateRequest(data, client)) return;
     let lobbyId = data.lobbyId;
     let playerId = data.playerId;
 
@@ -305,19 +313,30 @@ class Server {
 
         this.gameServer.deletePlayer(lobbyId, playerId);
         this.deleteClient(client);
-        response.code = 1;
+        response.code = protocol.code.leave.success;
         this.updateLobby(lobby);
-        
+
       } else {
         this.logger.error('Could not find player id ' + playerId + ' in lobby id ' + lobbyId + ' for leave request');
-        response.code = -1;
+        response.code = protocol.code.leave.player_missing_error;
       }
     } else {
       this.logger.error('Could not find lobby id ' + lobbyId + ' for leave request');
-      response.code = -2;
+      response.code = protocol.code.leave.lobby_missing_error;
     }
 
     this.send(client, response);
+  }
+
+  pauseAck(client, data) {
+
+    let response = protocol.out.pause;
+    if (!this.validateRequest(data, client)) return;
+
+    // TODO
+
+    this.send(client, response);
+
   }
 }
 
