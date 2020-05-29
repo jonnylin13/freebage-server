@@ -3,11 +3,12 @@
 const rules = require('../../rules.json');
 
 class Lobby {
-  constructor(id, logger) {
+  constructor(id, logger, controllerId) {
 
     this.id = id;
     this.logger = logger;
     this.players = {};
+    this.controllerId = controllerId;
     this.currentRound = 1;
     this.currentPhase = 1;
 

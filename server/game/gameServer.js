@@ -15,10 +15,11 @@ class GameServer {
 
   /**
    * Instantiates a new Lobby and adds a reference to GameServer
+   * @param {String} controllerId - The controller UUIDv4 id
    * @return {String} Lobby HRI ID
    */
-  createLobby() {
-    let lobby = new Lobby(HRI.random(), new Logger('Lobby', this.logger.priority, ' ---- '));
+  createLobby(controllerId) {
+    let lobby = new Lobby(HRI.random(), new Logger('Lobby', this.logger.priority, ' ---- '), controllerId);
     this.lobbies[lobby.id] = lobby;
     this.logger.info('Lobby created with id: ' + lobby.id);
     return lobby.id;
@@ -70,6 +71,10 @@ class GameServer {
   }
 
   stopLobby(lobbyId) {
+    // TODO
+  }
+
+  playLobby(lobbyId) {
     // TODO
   }
 

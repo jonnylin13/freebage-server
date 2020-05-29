@@ -6,6 +6,7 @@ const { Logger } = require('./logger');
 const _ = require('underscore');
 const config = require('../config.json');
 const protocol = require('../protocol.json');
+const { v4: uuidv4 } = require('uuid');
 // const http = require('http');
 
 
@@ -107,6 +108,9 @@ class Server {
       case 'leave':
         this.leaveAck(client, data);
         break;
+      case 'play':
+        this.playAck(client, data);
+        break;
       case 'pause':
         this.pauseAck(client, data);
         break;
@@ -146,8 +150,10 @@ class Server {
   close() {
 
     clearInterval(this.heartbeatTask);
-    for (let client of Object.values(this.clients))
+    for (let client of Object.values(this.clients)) {
       this.deleteClient(client);
+      client.terminate();
+    }
     this.logger.info('Server terminated');
 
   }
@@ -201,9 +207,9 @@ class Server {
     
     for (let pid of Object.keys(lobby.players)) {
       let c = this.clients[pid];
-      req.players = ps;
       this.send(c, req);
     }
+    this.send(this.clients[lobby.controller], req);
 
   }
 
@@ -216,30 +222,33 @@ class Server {
 
     let response = protocol.out.handshake;
 
-    if (!this.validateRequest(data, client, ['name'], true)) return;
-
     let playerName = data.name;
     let lobbyId = data.lobbyId;
 
-    if (!('lobbyId' in data)) {
+    if (!('lobbyId' in data) && !('name' in data)) {
       // Create the lobby
-      lobbyId = this.gameServer.createLobby();
+      let controllerId = uuidv4();
+      lobbyId = this.gameServer.createLobby(controllerId);
 
       if (lobbyId in this.gameServer.lobbies) {
 
-        let lobby = this.gameServer.lobbies[lobbyId];
-        let player = this.gameServer.createPlayer(playerName);
+        // let lobby = this.gameServer.lobbies[lobbyId];
+        // let player = this.gameServer.createPlayer(playerName);
 
-        client.playerId = player.id;
-        client.lobbyId = lobby.id;
+        // client.playerId = player.id;
+        // client.lobbyId = lobby.id;
+        client.playerId = controllerId;
+        client.lobbyId = lobbyId;
 
-        lobby.addPlayer(player);
-        this.clients[player.id] = client;  
+        // lobby.addPlayer(player);
+        // this.clients[player.id] = client;  
+        this.clients[controllerId] = client;
 
         response.code = protocol.code.handshake.create_lobby;
         response.lobbyId = lobbyId;
-        response.playerId = player.id;
-        response.name = playerName;
+        response.controllerId = controllerId;
+        // response.playerId = player.id;
+        // response.name = playerName;
 
       } else {
         // Lobby could not be added to this.gameServer.lobbies..
@@ -254,7 +263,7 @@ class Server {
       let lobby = this.gameServer.lobbies[lobbyId];
 
       if (!lobby.addPlayer(newPlayer)) {
-        response.code = protocol.code.handshake.lobby_creation_error;
+        response.code = protocol.code.handshake.add_player_error;
         this.send(client, response);
         return;
       }
@@ -267,7 +276,7 @@ class Server {
       response.lobbyId = lobbyId;
       response.playerId = newPlayer.id;
 
-      this.updateLobby();
+      this.updateLobby(lobby);
 
     } else {
       // No lobby found
@@ -317,13 +326,31 @@ class Server {
         this.updateLobby(lobby);
 
       } else {
-        this.logger.error('Could not find player id ' + playerId + ' in lobby id ' + lobbyId + ' for leave request');
-        response.code = protocol.code.leave.player_missing_error;
+        if (lobby.controllerId == playerId) {
+
+          // TODO logic to kick everyone out of the game once the controller leaves
+          
+          this.deleteClient(client);
+          response.code = protocol.code.leave.success;
+        } else {
+          this.logger.error('Could not find player id ' + playerId + ' in lobby id ' + lobbyId + ' for leave request');
+          response.code = protocol.code.leave.player_missing_error;
+        }
       }
     } else {
       this.logger.error('Could not find lobby id ' + lobbyId + ' for leave request');
       response.code = protocol.code.leave.lobby_missing_error;
     }
+
+    this.send(client, response);
+  }
+
+  playAck(client, data) {
+
+    let response = protocol.out.play;
+    if (!this.validateRequest(data, client)) return;
+
+    // TODO
 
     this.send(client, response);
   }
