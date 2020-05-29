@@ -1,0 +1,13 @@
+{
+  "environment": {
+    "local": {
+      "host": "localhost"
+    },
+    "lan": {
+      "host": "10.0.0.63"
+    },
+    "prod": {
+
+    }
+  }
+}

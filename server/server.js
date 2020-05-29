@@ -4,11 +4,13 @@ const WebSocket = require('ws');
 const { GameServer } = require('./game/gameServer');
 const { Logger } = require('./logger');
 const _ = require('underscore');
+const config = require('../config.json');
 // const http = require('http');
 
 class Server {
 
-  constructor() {
+  constructor(environment="lan") {
+    this.environment = environment;
     this.wss = null;
     // this.server = http.createServer();
     this.clients = {};
@@ -21,7 +23,7 @@ class Server {
    */
   start() {
     this.logger = new Logger('Server', 2);
-    this.wss = new WebSocket.Server({port: 3000, host: '10.0.0.63'});
+    this.wss = new WebSocket.Server({port: 3000, host: config.environment[this.environment].host });
     this.logger.info('Instantiated websocket server');
     
     this.wss.on('connection', client => this.open(client));

@@ -21,7 +21,7 @@ class Logger {
   }
 
   getFilename() {
-    return new Date().toLocaleDateString('en-US').replace('/', '-').replace('/', '-') + '.txt';
+    return new Date().toLocaleDateString('en-US').replace('/', '-').replace('/', '-') + '.log';
   }
 
   log(msg, priority) {
