@@ -1,0 +1,20 @@
+{
+  "name": "freebage",
+  "version": "0.0.1",
+  "description": "Free version of Fibbage",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server/start.js"
+  },
+  "keywords": [
+    "fibbage"
+  ],
+  "author": "jonnylin13",
+  "license": "ISC",
+  "dependencies": {
+    "human-readable-ids": "^1.0.4",
+    "uuid": "^8.1.0",
+    "ws": "^7.3.0"
+  }
+}
