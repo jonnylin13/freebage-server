@@ -74,6 +74,9 @@ class Server {
 
     this.logger.info('Client connected from ' + client._socket.remoteAddress);
     client.isAlive = true;
+    client.sendJSON = function (data) {
+      this.send(JSON.stringify(data));
+    }
     
     client.on('pong', (msg) => { this.heartbeat(client, msg) });
     client.on('message', (msg) => { this.message(client, msg) });
@@ -160,6 +163,7 @@ class Server {
 
   /**
    * Formats the data into a JSON string before sending to client
+   * @deprecated - Use client.sendJSON instead
    * @param {WebSocket} client - The websocket client
    * @param {Object} data - The data in JSON
    */
@@ -186,7 +190,8 @@ class Server {
 
     for (let field of fields) {
       if (!(field in data)) {
-        this.send(client, response);
+        client.sendJSON(response);
+        // this.send(client, response);
         this.logger.error('Received ' + data.type + ' request with missing fields from: ' + client._socket.remoteAddress);
         return false;
       }
@@ -207,9 +212,11 @@ class Server {
     
     for (let pid of Object.keys(lobby.players)) {
       let c = this.clients[pid];
-      this.send(c, req);
+      c.sendJSON(req);
+      // this.send(c, req);
     }
-    this.send(this.clients[lobby.controllerId], req);
+    this.clients[lobby.controllerId].sendJSON(req);
+    // this.send(this.clients[lobby.controllerId], req);
 
   }
 
@@ -264,7 +271,8 @@ class Server {
 
       if (!lobby.addPlayer(newPlayer)) {
         response.code = protocol.code.handshake.add_player_error;
-        this.send(client, response);
+        // this.send(client, response);
+        client.sendJSON(response);
         return;
       }
 
@@ -284,7 +292,8 @@ class Server {
       response.code = protocol.code.handshake.lobby_missing_error;
     }
 
-    this.send(client, response);
+    client.sendJSON(response);
+    // this.send(client, response);
   }
 
   /**
@@ -299,7 +308,8 @@ class Server {
 
     // TODO - handle
 
-    this.send(client, response);
+    client.sendJSON(response);
+    // this.send(client, response);
   }
 
   /**
@@ -330,8 +340,10 @@ class Server {
 
           for (let player of Object.values(lobby.players)) {
             if (player.id in this.clients) {
-              this.send(this.clients[player.id], protocol.out.kick);
-              this.deleteClient(this.clients[player.id]);
+              let c = this.clients[player.id];
+              // (c, protocol.out.kick);
+              c.sendJSON(protocol.out.kick);
+              this.deleteClient(c);
             }
           }
           this.deleteClient(client);
@@ -347,7 +359,8 @@ class Server {
       response.code = protocol.code.leave.lobby_missing_error;
     }
 
-    this.send(client, response);
+    client.sendJSON(response);
+    // this.send(client, response);
   }
 
   playAck(client, data) {
@@ -357,7 +370,8 @@ class Server {
 
     // TODO
 
-    this.send(client, response);
+    client.sendJSON(response);
+    // this.send(client, response);
   }
 
   pauseAck(client, data) {
@@ -367,7 +381,8 @@ class Server {
 
     // TODO
 
-    this.send(client, response);
+    // this.send(client, response);
+    client.sendJSON(response);
 
   }
 }

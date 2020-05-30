@@ -51,7 +51,7 @@ class GameServer {
 
   /**
    * Removes the player from the given Lobby
-   * @param {String} lobbyId - The Lobby's HRI ID
+   * @param {String} lobbyId - Lobby HRI ID
    * @param {String} playerId - The Player's UUIDv4 ID
    * @return {Boolean} True if successful
    */
@@ -66,18 +66,35 @@ class GameServer {
     } else return false;
   }
 
-  startLobby(lobbyId) {
+  /**
+   * Starts the game
+   * @param {String} lobbyId - Lobby HRI ID
+   * @param {Map<String, WebSocket>} clients - Map of WebSocket clients in Lobby
+   */
+  startLobby(lobbyId, clients) {
     // TODO
   }
 
+  /**
+   * Stops the game
+   * @param {String} lobbyId - Lobby HRI ID
+   */
   stopLobby(lobbyId) {
     // TODO
   }
 
+  /**
+   * Unpauses the game
+   * @param {String} lobbyId - Lobby HRI ID
+   */
   playLobby(lobbyId) {
     // TODO
   }
 
+  /**
+   * Pauses the game
+   * @param {String} lobbyId 
+   */
   pauseLobby(lobbyId) {
     // TODO
   }

@@ -1,22 +1,43 @@
 {
   "min_players": 2,
   "max_players": 8,
-  "num_rounds": 3,
-  "points": [
+  "phases": [
+    {
+      "name": "question",
+      "time": 10
+    },
+    {
+      "name": "lie",
+      "time": 15
+    },
+    {
+      "name": "guess",
+      "time": 15
+    },
+    {
+      "name": "funny",
+      "time": -1
+    },
+    {
+      "name": "score",
+      "time": 5
+    }
+  ],
+  "rounds": [
     {
       "lie": 500,
       "truth": 1000,
-      "funny": 1125
+      "funny": 1250
     },
     {
       "lie": 1000,
-      "truth": 1250,
-      "funny": 1750
+      "truth": 2000,
+      "funny": 2500
     },
     {
       "lie": 1500,
       "truth": 1750,
-      "funny": 2500
+      "funny": 3000
     }
   ]
 }

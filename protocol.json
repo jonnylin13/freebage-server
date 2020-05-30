@@ -6,6 +6,9 @@
     "start": {
       "type": "start"
     },
+    "end": {
+      "type": "end"
+    },
     "leave": {
       "type": "leave"
     },
@@ -23,6 +26,9 @@
     "start": {
       "type": "start_ack"
     },
+    "end": {
+      "type": "end"
+    },
     "leave": {
       "type": "leave_ack"
     },
@@ -37,6 +43,18 @@
     },
     "kick": {
       "type": "kick"
+    },
+    "start_round": {
+      "type": "start_round"
+    },
+    "end_round": {
+      "type": "end_round"
+    },
+    "start_phase": {
+      "type": "start_phase"
+    },
+    "end_phase": {
+      "type": "end_phase"
     }
   },
   "code": {
