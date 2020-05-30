@@ -209,7 +209,7 @@ class Server {
       let c = this.clients[pid];
       this.send(c, req);
     }
-    this.send(this.clients[lobby.controller], req);
+    this.send(this.clients[lobby.controllerId], req);
 
   }
 
@@ -328,10 +328,15 @@ class Server {
       } else {
         if (lobby.controllerId == playerId) {
 
-          // TODO logic to kick everyone out of the game once the controller leaves
-          
+          for (let player of Object.values(lobby.players)) {
+            if (player.id in this.clients) {
+              this.send(this.clients[player.id], protocol.out.kick);
+              this.deleteClient(this.clients[player.id]);
+            }
+          }
           this.deleteClient(client);
           response.code = protocol.code.leave.success;
+
         } else {
           this.logger.error('Could not find player id ' + playerId + ' in lobby id ' + lobbyId + ' for leave request');
           response.code = protocol.code.leave.player_missing_error;

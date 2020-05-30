@@ -58,6 +58,11 @@ class Lobby {
       this.logger.info('Player ' + player.name + ' removed from lobby ' + this.id);
       return true;
 
+    }
+
+    if (playerId == this.controllerId) {
+      delete this.controllerId;
+      return true;
     } else return false;
 
   }
